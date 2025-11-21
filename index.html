@@ -1,0 +1,480 @@
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador de Afirmaciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: High-Contrast Orange/White -->
+    <!-- Application Structure Plan: The SPA is designed as an interactive verification dashboard with data loaded statically. The core structure is a filterable card layout. Products are loaded instantly on page load. The structure is thematic and allows hierarchical drill-down: Category Filter -> Product Card -> Expandable Claim/Analysis. The summary chart is drawn once on load, providing a quick status overview. This static structure prioritizes speed, reliability, and simple publishing via free hosting services. -->
+    <!-- Visualization & Content Choices: 1. **Summary Chart**: Report Info: Overall verification status of all claims. -> Goal: Provide an immediate high-level summary. -> Viz/Presentation Method: Horizontal Bar Chart (Chart.js/Canvas). -> Interaction: Static. 2. **Filter Buttons**: Report Info: Product categories. -> Goal: Organize and allow easy navigation. -> Viz/Presentation Method: Interactive HTML buttons. -> Interaction: Click to filter product list. 3. **Product Cards with Status Icons**: Report Info: Claims and verification status. -> Goal: Inform and compare. -> Viz/Presentation Method: Structured HTML/CSS with Unicode icons (✅, ⚠️, ❌). -> Interaction: Click to expand for details. NO SVG/Mermaid used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FF6900; /* Naranja Vibrante */
+            color: #FFFFFF; /* Texto principal en blanco */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 300px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+        .max-h-0 {
+            max-height: 0;
+        }
+        .max-h-screen {
+            max-height: 100vh;
+        }
+        /* Ajustes de color para el fondo NARANJA */
+        .header-text {
+            color: #FFFFFF;
+        }
+        .subheader-text {
+            color: #FEEEDD; /* Blanco suave */
+        }
+        .card-bg {
+            background-color: #FFFFFF; /* Fondo de tarjeta blanco para legibilidad */
+        }
+        .card-text {
+            color: #3f3c3a; /* Texto dentro de tarjeta oscuro */
+        }
+        .card-subheader {
+            color: #6b7280; /* Gris para subencabezados */
+        }
+        .filter-btn-default {
+            background-color: #FFFFFF; /* Botón inactivo blanco */
+            color: #3f3c3a;
+            border: 1px solid #D1D5DB;
+        }
+        .filter-btn-default:hover {
+            background-color: #F3F4F6;
+        }
+        .filter-btn-active {
+            background-color: #3f3c3a; /* Oscuro para contraste en activo */
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container mx-auto px-4 py-8 md:py-12">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-5xl font-bold header-text mb-2">Verificador de Afirmaciones</h1>
+            <p class="text-lg subheader-text max-w-3xl mx-auto">Análisis estático de la coherencia entre declaraciones de productos y evidencia científica. (Datos cargados directamente en el código fuente).</p>
+        </header>
+
+        <main>
+            <section id="summary" class="mb-12 relative">
+                 <h2 class="text-2xl font-bold header-text mb-4 text-center">Resumen del Análisis de Coherencia</h2>
+                 <p class="text-center subheader-text mb-6">Este gráfico muestra la distribución de todas las afirmaciones analizadas según su nivel de coherencia.</p>
+                <div class="chart-container card-bg rounded-lg shadow-md p-4">
+                    <canvas id="summaryChart"></canvas>
+                </div>
+            </section>
+            
+            <section id="explorer">
+                <h2 class="text-2xl font-bold header-text mb-4 text-center">Explorador de Productos</h2>
+                <p class="text-center subheader-text mb-6">Filtra por área de interés o explora la lista completa de productos.</p>
+                <div id="filters" class="flex flex-wrap justify-center gap-2 mb-8"></div>
+                <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative">
+                </div>
+            </section>
+        </main>
+        
+        <footer class="text-center mt-12 py-6 border-t border-white border-opacity-30">
+            <p class="text-sm subheader-text">&copy; 2025 Analizador de Evidencia.</p>
+        </footer>
+    </div>
+
+    <script>
+        // ====================================================================================
+        // === DATOS ESTÁTICOS: EDITAR ESTA VARIABLE PARA AÑADIR O CAMBIAR PRODUCTOS ===
+        // ====================================================================================
+        const supplementData = [
+            {
+                name: "Colágeno Hidrolizado",
+                category: "Salud Articular y Piel",
+                claims: [
+                    { statement: "Ayuda a cuidar las articulaciones y mantener su movilidad.", source: "PubMed (2024)", status: "coherent", analysis: "Un meta-análisis de 2024 confirma los efectos positivos de los péptidos de colágeno para reducir el dolor y mejorar la función en la osteoartritis de rodilla, respaldando la afirmación.", type: "Meta-análisis" },
+                    { statement: "Ayuda a mejorar la hidratación, elasticidad y apariencia de la piel.", source: "PubMed (2024)", status: "coherent", analysis: "Este ensayo clínico aleatorizado de 2024 encontró que el colágeno oral mejoró significativamente la hidratación y elasticidad de la piel, y redujo las arrugas, lo que valida la afirmación.", type: "Ensayo clínico aleatorizado" },
+                    { statement: "La vitamina C favorece la formación natural de colágeno.", source: "Nutrients (2017)", status: "coherent", analysis: "El artículo de revisión establece que la Vitamina C es un cofactor esencial en el proceso de **síntesis** (fabricación y correcto ensamblaje) del colágeno, lo que es fundamental y confirma su rol biológico.", type: "Artículo de revisión" }
+                ]
+            },
+            {
+                name: "Prostaflam Curcuma",
+                category: "Salud Masculina",
+                claims: [
+                    { statement: "Ayuda a reducir la inflamación prostática.", source: "Translational Andrology and Urology (2022)", status: "coherent", analysis: "Este meta-análisis concluye que la curcumina puede mejorar significativamente los síntomas del tracto urinario inferior asociados a la hiperplasia prostática benigna, lo cual está alineado con la reducción de la inflamación.", type: "Revisión sistemática y meta-análisis" },
+                    { statement: "Ayuda a desinflamar las vías urinarias.” (Achiote.)", source: "EsSalud (Fuente de salud pública)", status: "partially-coherent", analysis: "La fuente es una recomendación de una entidad de salud pública sobre el Achiote, no un estudio científico revisado por pares. La información es plausible pero no constituye evidencia científica directa.", type: "Fuente de salud pública" },
+                    { statement: "Protege los riñones frente al daño oxidativo e inflamatorio.” [Curcumina en modelo animal]", status: "partially-coherent", analysis: "El estudio es un modelo animal (ratones) y demuestra efectos nefroprotectores de la curcumina. Si bien la afirmación es científicamente plausible, no es directamente extrapolable a humanos.", type: "Estudio en animales" }
+                ]
+            },
+            {
+                name: "Citrato de Magnesio",
+                category: "Salud General y Bienestar",
+                claims: [
+                    { statement: "Apoya la actividad muscular y el rendimiento.", source: "PubMed (2015)", status: "coherent", analysis: "El artículo de revisión 'Magnesium and Human Performance...' concluye que el magnesio juega un rol fisiológico crucial en la función muscular. La suplementación puede ser útil en individuos con deficiencia, apoyando la afirmación.", type: "Artículo de revisión" },
+                    { statement: "Ayuda a reducir la frecuencia de las migrañas.", source: "Nutrients (2025)", status: "coherent", analysis: "El estudio de revisión de febrero de 2025 ya está publicado y concluye que la suplementación con magnesio es una estrategia efectiva para la profilaxis de las migrañas, lo que hace que la afirmación sea coherente.", type: "Artículo de revisión" },
+                    { statement: "Contribuye a aliviar el estreñimiento ocasional.", source: "PMC (2021)", status: "coherent", analysis: "El artículo discute la eficacia y seguridad del óxido de magnesio, pero también menciona el citrato de magnesio como un laxante salino comúnmente usado, lo que respalda la afirmación por su conocido efecto osmótico.", type: "Revisión clínica" },
+                    { statement: "Ayuda a aliviar el estreñimiento leve y favorece una digestión más regular.", source: "MedlinePlus", status: "coherent", analysis: "MedlinePlus, una fuente de información de salud de los NIH de EE.UU., corrobora que el citrato de magnesio se usa como laxante para tratar el estreñimiento ocasional, lo que valida directamente esta afirmación.", type: "Fuente de salud pública" }
+                ]
+            },
+            {
+                name: "Magne Balance",
+                category: "Energía y Descanso",
+                claims: [
+                    { statement: "Favorece la producción de energía celular y reduce la fatiga. (Magnesio y potasio)", source: "PMC (2023)", status: "coherent", analysis: "La revisión concluye que el magnesio y el potasio son esenciales para la producción de energía celular y su deficiencia puede llevar a la fatiga, lo que respalda la afirmación.", type: "Revisión sistemática" },
+                    { statement: "Ayuda a mejorar la calidad de sueño.", source: "PMC (2012)", status: "coherent", analysis: "Este ensayo clínico encontró que la suplementación con magnesio mejoró los parámetros del sueño en adultos mayores, lo que apoya la afirmación para esa población específica.", type: "Ensayo clínico" },
+                    { statement: "Apoya la actividad muscular y el rendimiento (magnesio).", source: "PubMed (2015)", status: "coherent", analysis: "El artículo de revisión detalla el rol del magnesio en la función muscular, incluyendo la producción de ATP, lo que directamente apoya el rendimiento físico.", type: "Artículo de revisión" }
+                ]
+            },
+            {
+                name: "Citrato de Potasio",
+                category: "Salud Muscular y Cardiovascular",
+                claims: [
+                    { statement: "Ayuda a reducir los calambres musculares nocturnos.", source: "AGS Journals (2017)", status: "coherent", analysis: "Este ensayo clínico aleatorizado encontró que el citrato de potasio fue significativamente más efectivo que el placebo para reducir la frecuencia de calambres nocturnos.", type: "Ensayo clínico aleatorizado" },
+                    { statement: "Ayuda a mantener músculos fuertes.", source: "ScienceDirect (2021)", status: "coherent", analysis: "El artículo de revisión detalla que el potasio es un electrolito clave para la función muscular y la contracción, lo que apoya directamente la afirmación.", type: "Artículo de revisión" },
+                    { statement: "Ayuda a mantener el equilibrio electrolítico y cardiovascular", source: "Oregon State University - LPI", status: "coherent", analysis: "El Linus Pauling Institute, una fuente autorizada, detalla que el potasio es un electrolito crucial para mantener el volumen de fluidos, el equilibrio de pH y la presión arterial normal, lo que apoya la afirmación.", type: "Fuente educativa autorizada" }
+                ]
+            },
+            {
+                name: "FloraProbiotic",
+                category: "Salud Digestiva",
+                claims: [
+                    { statement: "Contribuye a mejorar la salud Digestiva", source: "Frontiers in Microbiology (2023)", status: "coherent", analysis: "El artículo de revisión explora cómo los probióticos modulan la microbiota intestinal y benefician la salud digestiva general, lo que apoya la afirmación.", type: "Artículo de revisión" },
+                    { statement: "Ayuda a mejorar la absorción de nutrientes", source: "PMC (2023)", status: "coherent", analysis: "La revisión sistemática indica que los probióticos pueden mejorar la absorción de ciertos micronutrientes, como el hierro y el calcio, lo que hace que la afirmación sea precisa.", type: "Revisión sistemática" },
+                    { statement: "Ayuda a mejorar el tránsito intestinal y aliviar el estreñimiento (papaína)", source: "PMC (2021)", status: "coherent", analysis: "El estudio es sobre una preparación a base de papaya que contiene papaína. La afirmación se refiere a la papaína, y la fuente confirma sus beneficios para el estreñimiento.", type: "Estudio clínico de ingrediente" }
+                ]
+            },
+            {
+                name: "Maca Negra",
+                category: "Energía y Vitalidad",
+                claims: [
+                    { statement: "Mejora la energía y resistencia física", source: "PMC (2023)", status: "coherent", analysis: "Esta revisión sistemática de estudios clínicos concluye que la suplementación con maca puede tener efectos beneficiosos sobre la energía y el estado de ánimo, respaldando la afirmación.", type: "Revisión sistemática" },
+                    { statement: "Apoya la fertilidad masculina", source: "PubMed (2001)", status: "coherent", analysis: "Este estudio clínico piloto en hombres sanos encontró que la maca negra mejoró el volumen de semen y la motilidad de los espermatozoides, apoyando la afirmación.", type: "Estudio clínico" },
+                    { statement: "Mejora el estado de ánimo y reduce la fatiga mental", source: "PMC (2024)", status: "coherent", analysis: "La revisión sistemática y meta-análisis sugiere que la maca tiene efectos positivos en el estado de ánimo y puede reducir los síntomas de ansiedad y depresión. La afirmación es consistente con los hallazgos.", type: "Revisión sistemática y meta-análisis" }
+                ]
+            },
+            {
+                name: "Maca Forte B",
+                category: "Salud y Bienestar",
+                claims: [
+                    { statement: "Ayuda a proteger las células y mantener la salud general (algarrobo).", source: "PMC (2020)", status: "coherent", analysis: "El artículo de revisión detalla los efectos antioxidantes y protectores del extracto de algarrobo, lo que respalda la afirmación sobre la protección celular y la salud general.", type: "Artículo de revisión" },
+                    { statement: "Refuerza el sistema inmunológico y protege las células (polen).", source: "PMC (2023)", status: "coherent", analysis: "El estudio de revisión concluye que el polen tiene propiedades antioxidantes y un efecto positivo en la función inmunológica, lo que respalda la afirmación.", type: "Artículo de revisión" },
+                    { statement: "Ayuda a mejorar la resistencia física y reduce la fatiga (comp B).", source: "PMC (2023)", status: "coherent", analysis: "La revisión destaca el papel de las vitaminas del complejo B en la producción de energía y la reducción de la fatiga, lo que valida la afirmación.", type: "Artículo de revisión" }
+                ]
+            },
+            {
+                name: "Hepafórmula",
+                category: "Salud Hepática",
+                claims: [
+                    { statement: "Favorece la defensa del hígado frente al daño celular (boldo).", source: "ScienceDirect (2013)", status: "coherent", analysis: "El artículo de revisión detalla que el extracto de boldo tiene efectos hepatoprotectores y antioxidantes, que favorecen la defensa del hígado.", type: "Artículo de revisión" },
+                    { statement: "Ayuda a reducir la inflamación y el estrés oxidativo en el hígado (diente de león).", source: "PMC (2021)", status: "coherent", analysis: "La revisión destaca que los compuestos del diente de león tienen propiedades antiinflamatorias y antioxidantes que son beneficiosas para la salud del hígado.", type: "Revisión de estudios" },
+                    { statement: "Contribuye a la salud y buen funcionamiento del hígado (alcachofa).", source: "PubMed (2018)", status: "coherent", analysis: "Este estudio experimental evalúa el extracto de hoja de alcachofa y demuestra que tiene un efecto protector contra el daño hepático inducido, lo que valida la contribución a la salud del hígado.", type: "Estudio experimental" }
+                ]
+            },
+            {
+                name: "Propóleo",
+                category: "Sistema Inmunológico y Respiratorio",
+                claims: [
+                    { statement: "Ayuda a fortalecer la salud respiratoria.", source: "PMC (2023)", status: "coherent", analysis: "La revisión sistemática de estudios clínicos muestra que el propóleo puede ser eficaz en el tratamiento de infecciones respiratorias del tracto superior, lo que apoya la afirmación.", type: "Revisión sistemática" },
+                    { statement: "Refuerza tus defensas y equilibra tu organismo.", source: "MDPI (2023)", status: "coherent", analysis: "El artículo de revisión destaca las propiedades inmunomoduladoras del propóleo, lo que le permite fortalecer las defensas del organismo.", type: "Artículo de revisión" },
+                    { statement: "Alta capacidad antioxidante.", source: "PMC (2021)", status: "coherent", analysis: "La revisión concluye que el propóleo tiene una alta actividad antioxidante, la cual contribuye a la protección celular contra el daño oxidativo.", type: "Revisión de estudios" }
+                ]
+            },
+            {
+                name: "Stevia y Yacón",
+                category: "Salud Digestiva y Control de Peso",
+                claims: [
+                    { statement: "Mantiene el peso y reduce el consumo energético", source: "PubMed (2020)", status: "coherent", analysis: "La revisión de estudios en humanos y animales muestra que la stevia y el yacón pueden influir en el control del peso al reducir la ingesta de alimentos y mejorar el metabolismo de la glucosa, apoyando la afirmación.", type: "Revisión sistemática" },
+                    { statement: "Ayuda a controlar el apetito sin subir la glucosa en la sangre", source: "PubMed (2019)", status: "coherent", analysis: "El estudio clínico en pacientes con diabetes tipo 2 encontró que el consumo de stevia antes de las comidas redujo el apetito y la ingesta calórica sin elevar los niveles de glucosa, lo que confirma la afirmación.", type: "Ensayo clínico" },
+                    { statement: "Más antioxidantes, mejor protección celular. (Yacón)", source: "PubMed (2021)", status: "coherent", analysis: "El estudio de revisión destaca que el yacón es una fuente rica en compuestos fenólicos y flavonoides, que son potentes antioxidantes, lo que apoya la afirmación sobre la protección celular.", type: "Revisión de estudios" }
+                ]
+            },
+            {
+                name: "Carti Balance",
+                category: "Salud Articular",
+                claims: [
+                    { statement: "Ayuda a reducir la inflamación articular (cartílago)", source: "PubMed (2012)", status: "coherent", analysis: "El estudio clínico sobre el extracto de cartílago bovino demuestra una reducción significativa en los marcadores de inflamación, lo que apoya la afirmación.", type: "Estudio clínico" },
+                    { statement: "La vitamina C contribuye a la correcta formación de colágeno, fundamental para la estructura y resistencia del cartílago.", source: "ResearchGate (2018)", status: "coherent", analysis: "El artículo de revisión detalla el papel esencial de la vitamina C en la síntesis de colágeno, el componente estructural principal del cartílago, lo que respalda la función de resistencia y formación.", type: "Revisión de estudios" },
+                    { statement: "La maracuyá contribuye a aliviar la tensión muscular.", source: "PubMed (2010)", status: "coherent", analysis: "Este estudio encontró que un extracto de maracuyá (passiflora) redujo la percepción de tensión muscular y ansiedad en sujetos sanos, lo que respalda la afirmación.", type: "Estudio clínico" }
+                ]
+            },
+            {
+                name: "Alcachofa",
+                category: "Salud Digestiva y Hepática",
+                claims: [
+                    { statement: "Ayuda a reducir el colesterol", source: "PubMed (2017)", status: "coherent", analysis: "El meta-análisis de 2017 confirma que el extracto de alcachofa tiene un efecto significativo en la reducción del colesterol total y LDL.", type: "Meta-análisis" },
+                    { statement: "Ayuda a proteger el hígado", source: "PMC (2022)", status: "coherent", analysis: "La revisión sistemática respalda el uso del extracto de hoja de alcachofa para el tratamiento del hígado graso no alcohólico y la mejora de las enzimas hepáticas, lo que demuestra su efecto protector.", type: "Revisión sistemática" },
+                    { statement: "Ayuda a la digestión al estimular la producción de bilis", source: "PubMed (2012)", status: "coherent", analysis: "El estudio clínico muestra que un extracto de alcachofa aumenta significativamente la producción de bilis, lo que facilita la digestión, especialmente de las grasas.", type: "Estudio clínico" }
+                ]
+            },
+            {
+                name: "Levadura de Cerveza",
+                category: "Energía y Nutrición",
+                claims: [
+                    { statement: "Ayuda a mantener la fuerza y salud muscular", source: "ScienceDirect (2022)", status: "coherent", analysis: "El estudio de revisión detalla que la levadura de cerveza, rica en proteínas y vitaminas del grupo B, apoya el metabolismo muscular y la salud general.", type: "Revisión de estudios" },
+                    { statement: "Ayuda a fortalecer y desarrollar los músculos (maca)", source: "PMC (2022)", status: "coherent", analysis: "La afirmación se refiere al beneficio de la maca, y el enlace es un estudio sobre los efectos de la maca en la fuerza muscular, lo que demuestra la coherencia.", type: "Estudio de ingrediente" },
+                    { statement: "Ayudan a aumentar la energía y mejorar la resistencia física. (goji)", source: "PubMed (2020)", status: "coherent", analysis: "La afirmación se refiere al goji, y el enlace es un estudio sobre los efectos del goji en la resistencia. La fuente sí respalda el beneficio del ingrediente.", type: "Estudio de ingrediente" }
+                ]
+            },
+            {
+                name: "Cartílago de Tiburón",
+                category: "Salud Articular",
+                claims: [
+                    { statement: "Ayuda a mantener las articulaciones fuertes y saludables. (calcio y Vitamina D)", source: "PubMed (2013)", status: "coherent", analysis: "La afirmación se refiere al calcio y la vitamina D, y el enlace es un estudio que confirma su papel en la salud ósea y articular. La coherencia se establece con el ingrediente, no con el producto principal.", type: "Revisión de estudios de ingrediente" },
+                    { statement: "Ayuda a reducir la inflamación y protege tus articulaciones (llantén)", source: "PMC (2015)", status: "coherent", analysis: "La afirmación se refiere al llantén. El enlace es una revisión sobre las propiedades antiinflamatorias y antioxidantes del llantén, lo que apoya la afirmación sobre el ingrediente.", type: "Revisión de estudios de ingrediente" }
+                ]
+            },
+            {
+                name: "Magne Balance Kids",
+                category: "Salud Infantil",
+                claims: [
+                    { statement: "El magnesio ayuda a fortalecer huesos, músculos y la energía.", source: "PubMed (2013)", status: "coherent", analysis: "El artículo de revisión subraya el papel del magnesio en el **equilibrio óseo**, la **función muscular** y la **producción de energía**. Esto hace que la afirmación sea totalmente coherente con la fuente.", type: "Revisión de estudios" },
+                    { statement: "Ayuda a mejorar la concentración en los niños.", source: "PubMed (1997)", status: "coherent", analysis: "Este estudio clínico sugiere que la suplementación con magnesio puede ser beneficiosa para mejorar la atención y reducir la hiperactividad en niños con TDAH. La afirmación es coherente con esta evidencia.", type: "Estudio clínico" },
+                    { statement: "El potasio ayuda al buen funcionamiento de los músculos y nervios en los niños.", source: "WHO (Fuente de salud pública)", status: "coherent", analysis: "El documento de la OMS confirma que el potasio es un nutriente crucial para el correcto funcionamiento de los nervios y los músculos en todas las edades, lo que valida la afirmación para los niños.", type: "Fuente de salud pública" }
+                ]
+            },
+            {
+                name: "Colágeno Resveratrol",
+                category: "Salud Articular y Piel",
+                claims: [
+                    { statement: "Ayuda a regenerar y proteger articulaciones y piel.", source: "Arthritis & Research (2007) y PMC (2022)", status: "coherent", analysis: "El primer estudio (colágeno) muestra que puede proteger el cartílago, y el segundo (resveratrol y colágeno) confirma los efectos beneficiosos en la salud de la piel.", type: "Estudios clínicos y revisión" },
+                    { statement: "Ayuda a mantener la firmeza y vitalidad del organismo", source: "PMC (2022) y ScienceDirect (2020)", status: "coherent", analysis: "El primer enlace confirma el efecto del resveratrol y colágeno en la firmeza de la piel. El segundo enlace es una revisión sobre los beneficios del resveratrol, que incluyen la mejora de la vitalidad celular y el metabolismo, apoyando la afirmación.", type: "Revisión de estudios" },
+                    { statement: "Ayuda a favorecer movilidad articular y elasticidad de la piel.", source: "PubMed (2014) y PMC (2022)", status: "coherent", analysis: "El primer enlace es un meta-análisis que concluye que el colágeno puede mejorar la elasticidad de la piel y la movilidad articular. El segundo enlace refuerza el efecto de ambos ingredientes.", type: "Meta-análisis y revisión" }
+                ]
+            },
+            {
+                name: "Propóleo Plus",
+                category: "Sistema Inmunológico y Respiratorio",
+                claims: [
+                    { statement: "La miel ayuda a disminuir la tos y aliviar los síntomas respiratorios", source: "PubMed (2020)", status: "coherent", analysis: "El estudio clínico aleatorizado encontró que una dosis de miel antes de dormir fue más efectiva para reducir la tos nocturna en niños que el placebo. La afirmación es coherente con el ingrediente y el estudio.", type: "Ensayo clínico aleatorizado" },
+                    { statement: "El ajo y la cebolla contribuyen a reducir las infecciones respiratorias y sus molestias", source: "PMC (2023)", status: "coherent", analysis: "La revisión concluye que los compuestos del ajo y la cebolla tienen propiedades antivirales y antiinflamatorias que pueden ayudar a reducir la incidencia y duración de las infecciones respiratorias. La afirmación es coherente.", type: "Revisión de estudios" }
+                ]
+            }
+        ];
+        // ====================================================================================
+        // === FIN DE DATOS ESTÁTICOS ===
+        // ====================================================================================
+
+
+        const statusConfig = {
+            'coherent': {
+                label: "Coherente",
+                icon: "✅",
+                color: "text-green-500",
+                bgColor: "bg-green-100",
+                borderColor: "border-green-300"
+            },
+            'partially-coherent': {
+                label: "Parcialmente Coherente",
+                icon: "⚠️",
+                color: "text-amber-500",
+                bgColor: "bg-amber-100",
+                borderColor: "border-amber-300"
+            },
+            'incoherent': {
+                label: "Incoherente / No Verificable",
+                icon: "❌",
+                color: "text-red-500",
+                bgColor: "bg-red-100",
+                borderColor: "border-red-300"
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderApp(supplementData);
+
+            document.getElementById('product-list').addEventListener('click', e => {
+                 const toggle = e.target.closest('.claim-toggle');
+                 if (toggle) {
+                     const details = toggle.nextElementSibling;
+                     details.classList.toggle('max-h-0');
+                     details.classList.toggle('max-h-screen');
+                 }
+            });
+        });
+
+        function renderApp(supplementData) {
+            renderSummaryChart(supplementData);
+            renderFilters(supplementData);
+            renderProducts('Todos', supplementData);
+        }
+
+        function renderFilters(supplementData) {
+            const filtersContainer = document.getElementById('filters');
+            filtersContainer.innerHTML = '';
+            
+            const categories = ['Todos', ...new Set(supplementData.map(p => p.category))];
+            
+            categories.forEach(category => {
+                const button = document.createElement('button');
+                button.textContent = category;
+                button.className = 'filter-btn px-4 py-2 text-sm font-medium rounded-full transition-all filter-btn-default';
+                if (category === 'Todos') {
+                    button.classList.remove('filter-btn-default');
+                    button.classList.add('filter-btn-active');
+                }
+                button.dataset.category = category;
+                filtersContainer.appendChild(button);
+            });
+
+            filtersContainer.addEventListener('click', e => {
+                if (e.target.classList.contains('filter-btn')) {
+                    const category = e.target.dataset.category;
+                    renderProducts(category, supplementData);
+                    document.querySelectorAll('#filters .filter-btn').forEach(btn => {
+                        btn.classList.add('filter-btn-default');
+                        btn.classList.remove('filter-btn-active');
+                    });
+                    e.target.classList.add('filter-btn-active');
+                    e.target.classList.remove('filter-btn-default');
+                }
+            });
+        }
+
+
+        function renderProducts(category, supplementData) {
+            const productList = document.getElementById('product-list');
+            productList.innerHTML = '';
+            
+            const filteredData = category === 'Todos' ? supplementData : supplementData.filter(p => p.category === category);
+
+            if (filteredData.length === 0) {
+                 productList.innerHTML = `<p class="text-center card-text bg-white p-6 rounded-lg shadow-md col-span-full">No hay productos en esta categoría.</p>`;
+                 return;
+            }
+
+            filteredData.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'card-bg rounded-lg shadow-xl border border-white border-opacity-50 overflow-hidden';
+                
+                let claimsHTML = product.claims.map((claim) => {
+                     const config = statusConfig[claim.status] || statusConfig['incoherent'];
+                    return `
+                    <div class="claim-item border-t border-slate-200">
+                         <button class="w-full text-left p-4 flex justify-between items-center hover:bg-slate-50 claim-toggle card-text">
+                             <span class="flex-1 pr-4 font-medium">${claim.statement}</span>
+                             <span class="flex-shrink-0 text-2xl">${config.icon}</span>
+                         </button>
+                         <div class="claim-details max-h-0 overflow-hidden transition-all duration-500 ease-in-out">
+                            <div class="p-4 bg-slate-50 border-t border-dashed border-slate-300">
+                                 <p class="mb-3"><strong class="${config.color}">Análisis:</strong> <span class="card-text">${claim.analysis}</span></p>
+                                 <div class="text-sm space-y-2">
+                                     <p><strong class="card-text">Tipo de evidencia:</strong> <span class="bg-slate-200 text-slate-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">${claim.type}</span></p>
+                                     <p><strong class="card-text">Fuente citada:</strong> <span class="card-text break-all">${claim.source}</span></p>
+                                 </div>
+                            </div>
+                         </div>
+                    </div>
+                    `;
+                }).join('');
+
+                productCard.innerHTML = `
+                    <div class="p-5">
+                        <h3 class="text-xl font-bold card-text">${product.name}</h3>
+                        <p class="text-sm card-subheader font-medium">${product.category}</p>
+                    </div>
+                    <div class="claims-container">
+                        ${claimsHTML}
+                    </div>
+                `;
+                productList.appendChild(productCard);
+            });
+        }
+
+        function renderSummaryChart(supplementData) {
+            const ctx = document.getElementById('summaryChart').getContext('2d');
+            
+            // Destruir instancia anterior si existe
+            if (window.chartInstance) {
+                window.chartInstance.destroy();
+            }
+
+            const statusCounts = supplementData.flatMap(p => p.claims).reduce((acc, claim) => {
+                acc[claim.status] = (acc[claim.status] || 0) + 1;
+                return acc;
+            }, {});
+
+            const chartLabels = Object.keys(statusCounts).map(status => statusConfig[status].label);
+            const chartDataValues = Object.values(statusCounts);
+            
+            const chartData = {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Número de Afirmaciones',
+                    data: chartDataValues,
+                    backgroundColor: chartLabels.map((label) => {
+                         if(label === 'Coherente') return 'rgba(22, 163, 74, 0.7)';
+                         if(label === 'Parcialmente Coherente') return 'rgba(245, 158, 11, 0.7)';
+                         return 'rgba(220, 38, 38, 0.7)';
+                    }),
+                    borderColor: chartLabels.map((label) => {
+                         if(label === 'Coherente') return 'rgba(22, 163, 74, 1)';
+                         if(label === 'Parcialmente Coherente') return 'rgba(245, 158, 11, 1)';
+                         return 'rgba(220, 38, 38, 1)';
+                    }),
+                    borderWidth: 1
+                }]
+            };
+
+            window.chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                         y: {
+                             ticks: {
+                                 color: '#3f3c3a' 
+                             }
+                         }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Distribución de Afirmaciones por Coherencia',
+                            font: { size: 16 },
+                            color: '#3f3c3a'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    return `${context.dataset.label}: ${context.parsed.x}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
